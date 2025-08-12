@@ -143,11 +143,6 @@ html.dark .el-form-item__label {
   z-index: 2000 !important;
 }
 
-/* 服务器状态容器的z-index调整 */
-.server-status-container {
-  z-index: 1900 !important;
-}
-
 .route-container {
   min-height: 100vh;
   width: 100%;
