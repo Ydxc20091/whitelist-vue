@@ -15,7 +15,7 @@
     >
       <div class="title-container">
         <i class="el-icon-user-solid"></i>
-        <h2>白名单申请</h2>
+        <h2>NodeMC入服白名单申请</h2>
         <el-button
             class="view-members-btn"
             text
