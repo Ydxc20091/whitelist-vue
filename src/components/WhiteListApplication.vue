@@ -8,84 +8,6 @@
         :currentTheme="currentTheme"
     />
     <div
-        v-if="!isMobile"
-        class="server-status-container"
-        :class="{ 'form-focused': isFormFocused }"
-    >
-      <div class="status-header">
-        <div class="header-title">
-          <i class="el-icon-monitor"></i>
-          <span>服务器状态</span>
-          <el-button
-              :loading="loading"
-              class="refresh-btn"
-              size="small"
-              @click="debouncedRefresh(true)"
-          >
-            <el-icon>
-              <Refresh/>
-            </el-icon>
-          </el-button>
-        </div>
-      </div>
-      <div class="status-content">
-        <div v-if="initialLoading" class="loading-state">
-          <el-icon class="loading-icon">
-            <Loading/>
-          </el-icon>
-          <span>加载中...</span>
-        </div>
-
-        <template v-else>
-          <div v-for="(server, index) in displayedServers"
-               :key="server.name"
-               class="server-block animate-in">
-            <div class="server-name">
-              <i class="el-icon-connection"></i>
-              {{ server.name }}
-            </div>
-            <div class="online-info">
-              <div v-if="server.players.length > 0" class="player-list">
-                <div class="players-label">
-                  <i class="el-icon-user"></i>
-                  在线玩家 ({{ server.playerCount }})：
-                </div>
-                <div class="players-container">
-                  <el-tag
-                      v-for="player in server.players"
-                      :key="player"
-                      class="player-tag"
-                      effect="light"
-                      size="small"
-                  >
-                    {{ player }}
-                  </el-tag>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="showViewMore" class="view-more-container">
-            <el-button
-                class="view-more-btn"
-                type="primary"
-                text
-                @click="$router.push('/server-status')"
-            >
-              <el-icon><ArrowRight /></el-icon>
-              查看更多服务器
-            </el-button>
-          </div>
-
-          <div class="query-time animate-in">
-            <i class="el-icon-time"></i>
-            {{ serverStatus.queryTime }}
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <div
         class="form-container"
         :class="{ 'focused': isFormFocused }"
         @click="handleFormFocus"
@@ -141,13 +63,12 @@
 </template>
 
 <script setup>
-import {computed, onMounted, onUnmounted, reactive, ref} from 'vue';
-import {ElMessage} from 'element-plus';
+import { reactive, ref } from 'vue';
+import { ElMessage } from 'element-plus';
 import axios from 'axios';
-import {ArrowRight, Loading, Refresh, User} from '@element-plus/icons-vue'
-import {debounce} from 'lodash-es';
-import SakuraBackground from './common/SakuraBackground.vue'
-import {addIPToHeaders} from '../utils/ipUtils'
+import { User } from '@element-plus/icons-vue';
+import SakuraBackground from './common/SakuraBackground.vue';
+import { addIPToHeaders } from '../utils/ipUtils';
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL, // 使用环境变量
@@ -161,23 +82,8 @@ const form = reactive({
   remark: ''
 });
 
-let loading = false;
-
-const serverStatus = reactive({
-  servers: [], // 存储所有服务器的状态
-  queryTime: '-'
-});
-
 // 添加全屏loading状态
 const fullscreenLoading = ref(false);
-
-// 添加防抖处理的刷新函数
-const debouncedRefresh = debounce((refresh) => {
-  getOnlinePlayer(refresh);
-}, 500);
-
-// 添加初始加载状态
-const initialLoading = ref(true);
 
 const submitForm = async () => {
   if (!form.userName || !form.qqNum || !form.onlineFlag) {
@@ -208,58 +114,6 @@ const submitForm = async () => {
   }
 };
 
-const getOnlinePlayer = (reflash) => {
-  loading = true;
-  http.get('/api/v1/getOnlinePlayer').then((res) => {
-    if (res.data.code === 200) {
-      const data = res.data.data;
-      // 重置服务器列表
-      serverStatus.servers = [];
-
-      // 遍历所有服务器数据
-      Object.entries(data).forEach(([serverName, serverData]) => {
-        // 跳过查询时间字段
-        if (serverName === '查询时间') {
-          serverStatus.queryTime = serverData;
-          return;
-        }
-
-        // 处理服务器数据
-        try {
-          // 处理在线玩家字符串
-          let players = [];
-          const playersStr = serverData['在线玩家'];
-          if (playersStr) {
-            players = playersStr.replace(/^\[|\]$/g, '').split(',')
-                .map(p => p.trim())
-                .filter(p => p);
-          }
-
-          serverStatus.servers.push({
-            name: serverName,
-            playerCount: serverData['在线人数'],
-            players: players
-          });
-        } catch (e) {
-          console.error(`处理服务器 ${serverName} 数据失败:`, e);
-        }
-      });
-      if (reflash) {
-        ElMessage.success('刷新成功！');
-      }
-    } else {
-      ElMessage.error(res.data.msg || '获取服务器状态失败');
-    }
-    loading = false;
-    initialLoading.value = false; // 设置初始加载状态为 false
-  }).catch((error) => {
-    console.error('查询在线玩家请求出错：', error);
-    ElMessage.error('查询在线玩家时发生错误，请检查网络或联系管理员');
-    loading = false;
-    initialLoading.value = false; // 错误时也需要关闭加载状态
-  });
-};
-
 // 获取当前主题
 const currentTheme = ref(localStorage.getItem('theme') || 'default')
 
@@ -273,33 +127,6 @@ const handleFormBlur = () => {
   isFormFocused.value = false;
 };
 
-// 计算是否显示查看更多按钮
-const showViewMore = computed(() => {
-  return serverStatus.servers.length > 3;
-});
-
-// 计算要显示的服务器列表
-const displayedServers = computed(() => {
-  return serverStatus.servers.slice(0, 3);
-});
-
-// 检测是否为移动设备
-const isMobile = ref(window.innerWidth <= 768);
-
-// 添加窗口大小变化监听
-const handleResize = () => {
-  isMobile.value = window.innerWidth <= 768;
-};
-
-onMounted(() => {
-  getOnlinePlayer();
-  window.addEventListener('resize', handleResize);
-});
-
-// 组件卸载时移除事件监听
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
-});
 </script>
 
 <style scoped>
@@ -506,340 +333,6 @@ onUnmounted(() => {
   animation: fadeIn 0.6s ease-out;
 }
 
-.server-status-container {
-  position: fixed;
-  width: 280px;
-  background: var(--theme-bg);
-  color: var(--theme-text);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--theme-border);
-  border-radius: 12px;
-  padding: 15px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-  z-index: 1001;
-
-  /* 默认在右上角 */
-  top: 20px;
-  right: 20px;
-}
-
-.server-status-container:hover {
-  transform: translateX(-5px);
-  box-shadow: 4px 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.status-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--theme-border);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  font-weight: 500;
-  color: var(--theme-primary);
-}
-
-.header-title i {
-  margin-right: 8px;
-}
-
-.status-content {
-  font-size: 14px;
-  padding: 0 8px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.server-name {
-  font-weight: 500;
-  color: var(--theme-primary);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  font-size: 15px;
-  padding: 4px 8px;
-  background: rgba(var(--theme-primary-rgb), 0.1);
-  border-radius: 6px;
-}
-
-.server-name i {
-  margin-right: 8px;
-  color: #409EFF;
-  font-size: 16px;
-}
-
-.online-info {
-  padding-left: 4px;
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-}
-
-.player-list {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.players-label {
-  color: #606266;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-  padding: 4px 0;
-  padding-left: 4px;
-}
-
-.players-label i {
-  margin-right: 8px;
-  color: #67C23A;
-  font-size: 15px;
-}
-
-.players-container {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding-left: 8px;
-  width: auto;
-  min-width: 0;
-}
-
-.player-tag {
-  background-color: rgba(var(--theme-secondary-rgb), 0.1);
-  border: 1px solid var(--theme-border);
-  color: var(--theme-text);
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.player-tag:hover {
-  background-color: rgba(var(--theme-primary-rgb), 0.15);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(var(--theme-primary-rgb), 0.15);
-}
-
-/* 在线指示点 */
-.online-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--theme-secondary);
-  display: inline-block;
-  margin-left: 4px;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(var(--theme-secondary-rgb), 0.4);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(var(--theme-secondary-rgb), 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(var(--theme-secondary-rgb), 0);
-  }
-}
-
-.query-time {
-  font-size: 12px;
-  color: var(--theme-text);
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  margin-top: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.6;
-}
-
-.query-time i {
-  margin-right: 6px;
-  color: #909399;
-  font-size: 14px;
-}
-
-.refresh-btn {
-  padding: 2px;
-  height: 20px;
-  width: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  margin-left: 8px;
-  background-color: #f4f4f5;
-  border: none;
-  transform: scale(1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.refresh-btn:hover {
-  transform: rotate(180deg);
-  background-color: #ecf5ff;
-  color: #409EFF;
-}
-
-.refresh-btn:focus {
-  color: #409EFF;
-  background-color: #ecf5ff;
-}
-
-.refresh-btn:active {
-  transform: scale(0.95);
-}
-
-.server-block {
-  transition: all 0.3s ease;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 15px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.server-block:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-}
-
-.player-count i,
-.players-label i {
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
-.header-title :deep(.refresh-btn) {
-  padding: 2px;
-  height: 24px;
-  width: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  margin-left: 8px;
-  background: none;
-  border: none;
-  color: #909399;
-}
-
-.header-title :deep(.refresh-btn .el-icon) {
-  font-size: 16px;
-}
-
-.header-title :deep(.refresh-btn:hover) {
-  transform: rotate(180deg);
-  background: none;
-  color: #409EFF;
-}
-
-.header-title :deep(.refresh-btn:focus) {
-  color: #409EFF;
-  background: none;
-  outline: none;
-}
-
-.header-title :deep(.refresh-btn i) {
-  margin: 0;
-}
-
-/* 优化服务器块样式 */
-.server-block {
-  transition: all 0.3s ease;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 15px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  width: 100%;
-}
-
-.server-block:hover {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-/* 优化玩家标签样式 */
-.player-tag {
-  transition: all 0.3s ease;
-  border-radius: 10px;
-  padding: 2px 10px;
-  background-color: rgba(103, 194, 58, 0.1);
-  border: 1px solid rgba(103, 194, 58, 0.2);
-  color: #67C23A;
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
-.player-tag:hover {
-  background-color: rgba(103, 194, 58, 0.2);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.1);
-}
-
-/* 优化查询时间样式 */
-.query-time {
-  font-size: 12px;
-  color: #909399;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  margin-top: 15px;
-}
-
-/* 添加错误信息样式 */
-.error-message {
-  color: #f56c6c;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  background: rgba(245, 108, 108, 0.1);
-  border-radius: 8px;
-  margin: 8px 0;
-  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.error-message i {
-  margin-right: 8px;
-  font-size: 16px;
-}
-
-@keyframes shake {
-  10%, 90% {
-    transform: translateX(-1px);
-  }
-  20%, 80% {
-    transform: translateX(2px);
-  }
-  30%, 50%, 70% {
-    transform: translateX(-4px);
-  }
-  40%, 60% {
-    transform: translateX(4px);
-  }
-}
-
 /* 优化表单容器 */
 .form-container {
   background: rgba(255, 255, 255, 0.85);
@@ -929,11 +422,6 @@ onUnmounted(() => {
     transform: rotate(360deg) translateX(100px);
     opacity: 0;
   }
-}
-
-/* 修改服务器状态容器的z-index确保在樱花上层 */
-.server-status-container {
-  z-index: 1001;
 }
 
 /* 修改表单容器的z-index确保在樱花上层 */
@@ -1046,62 +534,6 @@ html.dark .submit-btn:hover {
 .animated-form :deep(.el-textarea:focus-within::after) {
   width: 100%;
   left: 0%;
-}
-
-/* 赛博朋克主题特殊样式 */
-[data-theme="cyberpunk"] .server-status-container {
-  background: rgba(15, 10, 42, 0.85);
-  border-color: var(--theme-border);
-  box-shadow: var(--theme-neon-shadow);
-}
-
-[data-theme="cyberpunk"] .header-title,
-[data-theme="cyberpunk"] .server-name {
-  text-shadow: var(--theme-text-shadow);
-}
-
-[data-theme="cyberpunk"] .player-tag {
-  background: rgba(0, 255, 221, 0.1);
-  border-color: rgba(246, 24, 246, 0.3);
-  color: #00ffd5;
-  box-shadow: var(--theme-neon-shadow);
-  text-shadow: var(--theme-text-shadow);
-}
-
-[data-theme="cyberpunk"] .refresh-btn {
-  background: rgba(246, 24, 246, 0.2);
-  box-shadow: var(--theme-neon-shadow);
-}
-
-[data-theme="cyberpunk"] .refresh-btn:hover {
-  background: rgba(246, 24, 246, 0.3);
-}
-
-/* 暗色模式样式 */
-.dark .server-status-container {
-  background: var(--theme-bg-dark);
-  border-color: var(--theme-border-dark);
-}
-
-.dark .server-name {
-  color: var(--theme-text-dark);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.dark .player-tag {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-
-.dark .player-tag:hover {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
-}
-
-.dark .query-time {
-  color: var(--theme-text-dark);
-  opacity: 0.6;
 }
 
 /* 修改移动端样式 */
@@ -1233,9 +665,6 @@ html.dark .submit-btn:hover {
     padding: 20px;
   }
 
-  .server-status-container {
-    margin-top: 15px;
-  }
 }
 
 /* 主题特定样式 */
@@ -1332,13 +761,6 @@ html.dark .submit-btn:hover {
   color: #0D47A1;
 }
 
-[data-theme="ocean"] .server-status-container {
-  background: rgba(240, 248, 255, 0.95);
-  border-color: rgba(100, 181, 246, 0.3);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(25, 118, 210, 0.15),
-  0 2px 8px rgba(25, 118, 210, 0.1);
-}
 
 [data-theme="ocean"] .server-name {
   color: #1976D2;
@@ -1380,13 +802,6 @@ html.dark .submit-btn:hover {
   0 2px 8px rgba(13, 71, 161, 0.2);
 }
 
-.dark[data-theme="ocean"] .server-status-container {
-  background: rgba(13, 71, 161, 0.85);
-  border-color: rgba(100, 181, 246, 0.2);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(13, 71, 161, 0.3),
-  0 2px 8px rgba(13, 71, 161, 0.2);
-}
 
 .dark[data-theme="ocean"] .title-container h2 {
   color: #64B5F6;
@@ -1443,13 +858,6 @@ html.dark .submit-btn:hover {
   color: #006064;
 }
 
-[data-theme="aurora"] .server-status-container {
-  background: rgba(224, 247, 250, 0.95);
-  border-color: rgba(77, 208, 225, 0.3);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(38, 198, 218, 0.15),
-  0 2px 8px rgba(38, 198, 218, 0.1);
-}
 
 [data-theme="aurora"] .server-name {
   color: #00838F;
@@ -1491,13 +899,6 @@ html.dark .submit-btn:hover {
   0 2px 8px rgba(0, 96, 100, 0.2);
 }
 
-.dark[data-theme="aurora"] .server-status-container {
-  background: rgba(0, 96, 100, 0.85);
-  border-color: rgba(77, 208, 225, 0.2);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 8px 32px rgba(0, 96, 100, 0.3),
-  0 2px 8px rgba(0, 96, 100, 0.2);
-}
 
 .dark[data-theme="aurora"] .title-container h2 {
   color: #4DD0E1;

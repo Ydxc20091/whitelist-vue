@@ -44,8 +44,4 @@ describe('WhiteListApplication', () => {
         // 验证API调用
     })
 
-    it('refreshes server status', async () => {
-        await wrapper.vm.getOnlinePlayer(true)
-        expect(wrapper.vm.serverStatus.servers).toBeDefined()
-    })
 })

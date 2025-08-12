@@ -1,7 +1,6 @@
 export default {
     whitelist: {
         title: 'Whitelist Application',
-        serverStatus: 'Server Status',
         onlinePlayers: 'Online Players',
         submit: 'Submit Application',
         welcome: 'Welcome! Please fill in the following information to complete the whitelist application.',
