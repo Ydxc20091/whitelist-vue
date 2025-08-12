@@ -339,7 +339,6 @@ const getWhiteList = (showMessage = false) => {
       })
       .catch((error) => {
         console.error('获取数据失败：', error);
-        ElMessage.error('获取数据时发生错误，请检查网络或联系管理员');
       })
       .finally(() => {
         loading.value = false;
