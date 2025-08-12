@@ -433,7 +433,7 @@ const handleFormBlur = () => {
 /* 修改查看成员按钮样式 */
 .view-members-btn {
   position: absolute;
-  right: 20px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
